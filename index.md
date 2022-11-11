@@ -20,4 +20,4 @@ For any question feel free to contact me at: nikolaos.dimitriou [at] mail.mcgill
 
 ## Citing
 If you intend to use this code or data in your publications, please cite:
->Dimitriou, N. M., Flores-Torres, S., Kinsella, J. M., & Mitsis, G. D. (2021). Quantifying the Morphology and Mechanisms of Cancer Progression in 3D in-vitro environments: Integrating Experiments and Multiscale Models. BioRxiv. https://doi.org/10.1101/2021.11.16.468856
+>N. M. Dimitriou, S. Flores-Torres, J. M. Kinsella and G. D. Mitsis, "Quantifying the Morphology and Mechanisms of Cancer Progression in 3D in-vitro environments: Integrating Experiments and Multiscale Models," in IEEE Transactions on Biomedical Engineering, 2022, doi: 10.1109/TBME.2022.3216231.
