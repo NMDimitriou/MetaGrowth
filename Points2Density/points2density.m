@@ -71,29 +71,34 @@ end
 
 %% Convert centroids to density
 disp('Converting points to density...')
-[X1,X2,X3] = meshgrid(1:sz(1),1:sz(2),1:sz(3));
+[X1,X2,X3] = meshgrid(1:szq(1),1:szq(2),1:szq(3));
 d          = 3;
-grid       = reshape([X1(:),X2(:),X3(:)],sz(1)*sz(2)*sz(3),d);
+grid       = reshape([X1(:),X2(:),X3(:)],szq(1)*szq(2)*szq(3),d);
 denscell   = {};
 PV = {};
 %parpool(lg);
-for i=1:lg  
+for i=1:lg
     for j=1:lt
-		disp(['Calculating density for ' gname{i} ' at day ' tp{j}]);    
-		cmt = coord.(gname{i}).(tp{j}); 
+        disp(['Calculating density for ' gname{i} ' at day ' tp{j}]);
+        cmt = coord.(gname{i}).(tp{j});
         dmt = akde(cmt,grid);
-        denscell{i,j} = reshape(dmt,size(X1));
-		denscell{i,j} = denscell{i,j}.*(dx^3); % convert PDF to Probability
-		disp(['Interpolating ' gname{i} ' at day ' tp{j}])
-		F = griddedInterpolant(X,Y,Z,denscell{i,j},'linear');
-        PV{i,j} = F(Xq,Yq,Zq);
-		disp(['min PV = ' num2str(min(PV{i,j}(:)))])
-        disp(['min Prob = ' num2str(min(denscell{i,j}(:)))])
+        PV{i,j} = dmt*count.(gname{i}).(tp{j})*(15^3)/(5.21^3);
+        %enscell{i,j} = reshape(dmt,size(X1));
+        %denscell{i,j} = denscell{i,j}.*(dx^3); % convert PDF to Probability
+        %disp(['Interpolating ' gname{i} ' at day ' tp{j}])
+        %F = griddedInterpolant(X,Y,Z,denscell{i,j},'linear');
+        %PV{i,j} = F(Xq,Yq,Zq);
+        disp(['min PV = ' num2str(min(PV{i,j}(:)))])
+        %disp(['min Prob = ' num2str(min(denscell{i,j}(:)))])
         disp(['max PV = ' num2str(max(PV{i,j}(:)))])
-        disp(['max Prob = ' num2str(max(denscell{i,j}(:)))])
-    end    
+        %disp(['max Prob = ' num2str(max(denscell{i,j}(:)))])
+        %disp(['Plotting interpolated ' gname{i} ' at day ' tp{j}])
+        %pvol(PV{i,j},xq,xq,zq,['interp_prob_' gname{i} '_' tp{j}],tp{j},...
+        %'Corrected_Density_double_precision/');
+    end
 end
 delete(gcp('nocreate'));
+
 
 %% Save matrices to binary files
 
