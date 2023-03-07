@@ -258,39 +258,80 @@ __device__ int sign(double x)
 __global__ void kernelGrowA(double *a_new, double *a_old, double *dt, double S)
 {
 
+	__shared__ double sa[BDIMY][BDIMX];
+
+
 	double DT   = *dt; //dt
 	double dtS  = DT*S;
 //  double dtR  = DT*R;
 
 	int ix = blockIdx.x*blockDim.x + threadIdx.x;
-  int iy = blockIdx.y*blockDim.y + threadIdx.y;
-	int out_idx ;
+  	int iy = blockIdx.y*blockDim.y + threadIdx.y;
+	
+//	int in_idx  = iy*XMAX + ix;     //index for reading input
+    int out_idx ;           //index for writing output
+	int tx = threadIdx.x; //thread's x-index into corresponding shared memory
+    int ty = threadIdx.y; //thread's y-index into corresponding shared memory
 
 	#pragma unroll 4
 	for(int i=0; i<ZMAX; i++)
-  {
+  	{
 		out_idx = i*Zsize + iy*XMAX + ix;
-		a_new[out_idx] = a_old[out_idx] + dtS*a_old[out_idx]*(1.0-a_old[out_idx]);
+		sa[ty][tx] = a_old[out_idx];
+		//a_new[out_idx] = a_old[out_idx] + dtS*a_old[out_idx]*(1.0-a_old[out_idx]);
+		a_new[out_idx] = sa[ty][tx] + dtS*sa[ty][tx]*(1.0-sa[ty][tx]);
 	}
 }
+
+
+// Growth kernel for species A (cancer cells)
+__global__ void kernelAleeA(double *a_new, double *a_old, double *a_first, double *dt, double S, int iter)
+{
+
+    __shared__ double sa[BDIMY][BDIMX];
+	__shared__ double sf[BDIMY][BDIMX];
+
+
+    double DT   = *dt; //dt
+    double dtS  = DT*S;
+	double time = DT*iter;
+
+    int ix = blockIdx.x*blockDim.x + threadIdx.x;
+    int iy = blockIdx.y*blockDim.y + threadIdx.y;
+    
+    int out_idx ;           //index for writing output
+    int tx = threadIdx.x; //thread's x-index into corresponding shared memory
+    int ty = threadIdx.y; //thread's y-index into corresponding shared memory
+
+    #pragma unroll 4
+    for(int i=0; i<ZMAX; i++)
+    {
+        out_idx = i*Zsize + iy*XMAX + ix;
+        sa[ty][tx] = a_old[out_idx];
+		sf[ty][tx] = a_first[out_idx];
+        a_new[out_idx] = sa[ty][tx] + dtS*sa[ty][tx]*(1.0  -  1.028*sf[ty][tx]/(sa[ty][tx] + 942.8*time) );
+    }
+}
+
+
 
 
 // Growth kernel for species B (chemotactic signals)
 __global__ void kernelGrowB(double *b_new, double *b_old, double *a_old, double *dt, double R)
 {
-  double DT   = *dt; //dt
+  	double DT   = *dt; //dt
 	double dtR  = DT*R;
 
-  int ix = blockIdx.x*blockDim.x + threadIdx.x;
-  int iy = blockIdx.y*blockDim.y + threadIdx.y;
-  int out_idx ;
+  	int ix = blockIdx.x*blockDim.x + threadIdx.x;
+  	int iy = blockIdx.y*blockDim.y + threadIdx.y;
+  	int out_idx ;
 
 	#pragma unroll 4
-  for(int i=0; i<ZMAX; i++)
-  {
-    out_idx = i*Zsize + iy*XMAX + ix;
-   	b_new[out_idx] = b_old[out_idx] + dtR*b_old[out_idx]*a_old[out_idx]*(1.0-a_old[out_idx]);
-  }
+  	for(int i=0; i<ZMAX; i++)
+  	{
+    	out_idx = i*Zsize + iy*XMAX + ix;
+   		b_new[out_idx] = b_old[out_idx] + dtR*b_old[out_idx]*a_old[out_idx]*(1.0-a_old[out_idx]);
+  	}	
 }
 
 
@@ -311,8 +352,8 @@ __device__ double LW(double ap, double a, double am, double sap, double sa, doub
 									   double Fp, double Fm, double da)
 {
 	sap = 1.0-ap;
-  sa  = 1.0-a;
-  sam = 1.0-am;
+  	sa  = 1.0-a;
+  	sam = 1.0-am;
 
 	db   = CHI_DX*(b  - bm );
 	db_m = CHI_DX*(bm - bmm);
@@ -324,7 +365,7 @@ __device__ double LW(double ap, double a, double am, double sap, double sa, doub
 	maxbm1p = max(0.0, db_m) ;
 
 	Fp = _DX*(a *sa *maxbp   - ap*sap*maxbp1m + phip*LW_term*(ap*sap*db_p - a *sa *db  ));
-  Fm = _DX*(am*sam*maxbm1p - a *sa *maxbm   + phim*LW_term*(a *sa *db   - am*sam*db_m));
+  	Fm = _DX*(am*sam*maxbm1p - a *sa *maxbm   + phim*LW_term*(a *sa *db   - am*sam*db_m));
 
 	da = Fm - Fp;
 	return da;
@@ -342,7 +383,7 @@ __global__ void kernelAdv(double *a_new, double *a_old, double *b_old, double *d
 	int out_idx ;			//index for writing output
 
 	double DT   = *dt;              //dt
-  double dt_dx= DT*_DX;
+  	double dt_dx= DT*_DX;
 
 	double a_f1, a_f2, a_b1, a_b2;
 	double b_f1, b_f2, b_b1, b_b2;
@@ -354,7 +395,7 @@ __global__ void kernelAdv(double *a_new, double *a_old, double *b_old, double *d
 	double Fp, Fm;
 	double LW_termx, LW_termy, LW_termz;
 	double s, sp, sm;
-  int Jx, Jy, sdbx, sdby, sdbz;
+	int Jx, Jy, sdbx, sdby, sdbz;
 
 
 	int tx = threadIdx.x + radius; //thread's x-index into corresponding shared memory
@@ -508,26 +549,27 @@ __device__ void thomas(double *a, double *b, double *c, double *x, double *z, in
 // Hybrid Parallel Cyclic Reduction - Thomas algorighm
 __device__ void PCRTHOMASglobal(double *a, double *b, double *c, double *x, double *z, int numSteps, int sizeSystem, int sizeSmallerSystem) {
 
+
 	int delta = 1;
-  int thomasstride;
-  int iLeft, iRight;
-  double tmp1, tmp2, bNew, zNew, aNew, cNew;
-  double bNew1, zNew1, aNew1, cNew1;
+ 	int thomasstride;
+  	int iLeft, iRight;
+  	double tmp1, tmp2, bNew, zNew, aNew, cNew;
+  	double bNew1, zNew1, aNew1, cNew1;
 
 	int i = threadIdx.x;
-  int i1 = i+sizeSystem/2;
-  for (int j = 0; j < numSteps; j++) {
-    iRight = i+delta;
-    iRight = (iRight>=sizeSystem-1)?sizeSystem-2:iRight; //sizeSystem, sizeSystem-1
-    iLeft = i-delta;
-  	iLeft = (iLeft <1)?1:iLeft; //0,0
+  	int i1 = i+sizeSystem/2;
+  	for (int j = 0; j < numSteps; j++) {
+    	iRight = i+delta;
+    	iRight = (iRight>=sizeSystem-1)?sizeSystem-2:iRight; //sizeSystem, sizeSystem-1
+    	iLeft = i-delta;
+  		iLeft = (iLeft <1)?1:iLeft; //0,0
 
-    tmp1 = a[i] / b[iLeft];
-    tmp2 = c[i] / b[iRight];
-  	bNew = b[i] - c[iLeft] * tmp1 - a[iRight] * tmp2;
-    zNew = z[i] - z[iLeft] * tmp1 - z[iRight] * tmp2;
-  	aNew = -a[iLeft ] * tmp1;
-  	cNew = -c[iRight] * tmp2;
+    	tmp1 = a[i] / b[iLeft];
+    	tmp2 = c[i] / b[iRight];
+  		bNew = b[i] - c[iLeft] * tmp1 - a[iRight] * tmp2;
+    	zNew = z[i] - z[iLeft] * tmp1 - z[iRight] * tmp2;
+  		aNew = -a[iLeft ] * tmp1;
+  		cNew = -c[iRight] * tmp2;
 
 		iRight = i1+delta;
 		iRight = (iRight>=sizeSystem-1)?sizeSystem-2:iRight;
@@ -569,12 +611,12 @@ __global__ void transpose_XYZ_to_ZXY(double *osol, double *sol)
       by = blockIdx.y;
 
 	xin = tx + BLOCKSIZE * bx;
-  zin = ty + BLOCKSIZE * by;
+	zin = ty + BLOCKSIZE * by;
 
-  y = blockIdx.z;
+	y = blockIdx.z;
 
-  xout = ty + BLOCKSIZE * bx;
-  zout = tx + BLOCKSIZE * by;
+  	xout = ty + BLOCKSIZE * bx;
+  	zout = tx + BLOCKSIZE * by;
 
 
 	iid = xin  + (y +  zin * YMAX) * XMAX;
@@ -597,9 +639,9 @@ __global__ void transpose_ZXY_to_XYZ(double *osol, double *sol)
 	int xin, yin, z, xout, yout, iid, oid;
 
 	int tx = threadIdx.x,
-			ty = threadIdx.y,
-      bx = blockIdx.x,
-      by = blockIdx.y;
+	ty = threadIdx.y,
+    bx = blockIdx.x,
+    by = blockIdx.y;
 
 	xin = tx + BLOCKSIZE * bx;
 	yin = ty + BLOCKSIZE * by;
@@ -626,48 +668,48 @@ __global__ void transpose_ZXY_to_XYZ(double *osol, double *sol)
 
 __global__ void fillTridiagonals_x(double *d_a, double *d_b, double *d_c, double *sol, double *sol_rows, int elements, double DuDt_dxdx)
 {
-  __shared__ double aa[BXMAX];
-  __shared__ double bb[BXMAX];
-  __shared__ double cc[BXMAX];
-  __shared__ double zz[BXMAX];
-  __shared__ double xr[BXMAX];
+	__shared__ double aa[BXMAX];
+  	__shared__ double bb[BXMAX];
+  	__shared__ double cc[BXMAX];
+  	__shared__ double zz[BXMAX];
+  	__shared__ double xr[BXMAX];
 
-  int idx = blockIdx.x;
-  int idy = blockIdx.y;
-  int ty  = threadIdx.y;
-  int k   = blockDim.y*idy+ty;
-  int j, indJ;
-  bool ok_compute = (idx>0 && idx<YMAX-1 && k>0 && k<ZMAX-1);
+  	int idx = blockIdx.x;
+  	int idy = blockIdx.y;
+  	int ty  = threadIdx.y;
+  	int k   = blockDim.y*idy+ty;
+  	int j, indJ;
+  	bool ok_compute = (idx>0 && idx<YMAX-1 && k>0 && k<ZMAX-1);
 
   if(ok_compute)
   {
-		int index = idx*XMAX;
-		for(int e = 0; e < elements; e++){
-			j       =   elements*threadIdx.x+e;
+	int index = idx*XMAX;
+	for(int e = 0; e < elements; e++){
+		j       =   elements*threadIdx.x+e;
   		indJ    = k*XMAX*YMAX + index + j;
 
-      bb[j]     = 1.0+DuDt_dxdx;
-			aa[j]     =-0.5*DuDt_dxdx;
-      cc[j]     =-0.5*DuDt_dxdx;
-			zz[j]     = (j>0 && j<XMAX-1) ? (DuDt_dxdx*( 0.5* sol[indJ - 1] + 0.5*sol[indJ + 1]
+      	bb[j]     = 1.0+DuDt_dxdx;
+		aa[j]     =-0.5*DuDt_dxdx;
+      	cc[j]     =-0.5*DuDt_dxdx;
+		zz[j]     = (j>0 && j<XMAX-1) ? (DuDt_dxdx*( 0.5* sol[indJ - 1] + 0.5*sol[indJ + 1]
                     + sol[indJ - XMAX	] +     sol[indJ + XMAX ]
                   	+ sol[indJ - XMAX*YMAX	] +     sol[indJ + XMAX*YMAX])
                   	+ (1.0 - 5.0*DuDt_dxdx)*sol[indJ]) : 0.0f;
 
-			xr[j] = sol_rows[indJ];
-		}
-		__syncthreads();
-		PCRTHOMASglobal(aa,bb,cc,xr,zz,7,XMAX,8); //7,8
-		__syncthreads();
-
-		for(int e = 0; e < elements; e++)
-		{
-			j           = elements*threadIdx.x+e;
-			indJ        = k*XMAX*YMAX + index + j;
-			sol_rows[indJ]  = xr[j];
-		}
-	__syncthreads();
+		xr[j] = sol_rows[indJ];	
 	}
+	__syncthreads();
+	PCRTHOMASglobal(aa,bb,cc,xr,zz,7,XMAX,8); //7,8
+	__syncthreads();
+
+	for(int e = 0; e < elements; e++)
+	{
+		j           = elements*threadIdx.x+e;
+		indJ        = k*XMAX*YMAX + index + j;
+		sol_rows[indJ]  = xr[j];
+	}
+	__syncthreads();	
+  }
 }
 
 __global__ void fillTridiagonals_y(double *d_a, double *d_b, double *d_c, double *sol, double *sol_rows, double *sol_cols, int elements, double DuDt_dxdx){
@@ -719,8 +761,8 @@ __global__ void fillTridiagonals_z_transp(double *d_a, double *d_b, double *d_c,
 	__shared__ double aa[BZMAX];
 	__shared__ double bb[BZMAX];
 	__shared__ double cc[BZMAX];
-  __shared__ double zz[BZMAX];
-  __shared__ double xx[BZMAX];
+  	__shared__ double zz[BZMAX];
+  	__shared__ double xx[BZMAX];
 
 	int idx = blockIdx.x;
 	int idy = blockIdx.y;
@@ -806,11 +848,11 @@ __global__ void kernelStability(double *del_b, double *del_c, double *max_block)
   while(index + offset < NTOT){
 
   	maxCFL = max(maxCFL, abs(del_b[index+offset])); //del_b includes CHI
-//		#if ( MODEL == KSCMD )
-//		maxCFL = max(maxCFL, abs(del_c[index+offset]));
-//		#endif
-    offset += stride;
-	}
+	#if ( MODEL == KSCMD )
+	maxCFL = max(maxCFL, abs(del_c[index+offset]));
+	#endif
+    offset += stride;	
+  }
 
 	cache_CFL[threadIdx.x] = maxCFL;
 	__syncthreads();
@@ -821,7 +863,7 @@ __global__ void kernelStability(double *del_b, double *del_c, double *max_block)
 	if(threadIdx.x == 0){
 		tmp_CFL = 0.3*DX/cache_CFL[0];
 		max_block[blockIdx.x] = tmp_CFL;
-  }
+  	}
 }
 
 __global__ void final_kernelStability(double *max_block, double *DT_old, double *DT, int N, int iter)//, double Da, double Db)

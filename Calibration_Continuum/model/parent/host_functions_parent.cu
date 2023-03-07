@@ -53,7 +53,7 @@ void hostInitializeParent(DataArray& host, char* hostname)
 
 	#if ( MODEL == FK || MODEL == KSC || MODEL == KSMD || MODEL == KSCMD)
 	char filename[4096];
-    sprintf(filename, "%s/corr_dens_%s_D0.bin", host.path, host.dat);
+    sprintf(filename, "%s/new_dens_%s_D0.raw", host.path, host.dat);
 	FILE *f = fopen(filename,"rb");
 	if (f!=NULL)
 	{
@@ -124,6 +124,8 @@ void hostInitializeParent(DataArray& host, char* hostname)
 				host.b[c] = (1.0-0.005681818*count);
 				#elif ( IC == ID  )
 				host.b[c] = host.a[c];
+				#elif ( IC == NA )
+				host.b[c] = 0.0;
 				#endif
 			}
 			else{
@@ -216,13 +218,13 @@ void hostExpInitParent(DataArray& host, ExpData& expdat, char* hostname)
 
 	char filename0[4096], filename2[4096], filename5[4096], filename7[4096], filename9[4096], 
 	     filename12[4096], filename14[4096];
-    sprintf(filename0,  "%s/corr_dens_%s_D0.bin", host.path, host.dat);
-	sprintf(filename2,  "%s/corr_dens_%s_D2.bin", host.path, host.dat);
-	sprintf(filename5,  "%s/corr_dens_%s_D5.bin", host.path, host.dat);
-	sprintf(filename7,  "%s/corr_dens_%s_D7.bin", host.path, host.dat);
-	sprintf(filename9,  "%s/corr_dens_%s_D9.bin", host.path, host.dat);
-	sprintf(filename12, "%s/corr_dens_%s_D12.bin", host.path, host.dat);
-	sprintf(filename14, "%s/corr_dens_%s_D14.bin", host.path, host.dat);
+    sprintf(filename0,  "%s/new_dens_%s_D0.raw", host.path, host.dat);
+	sprintf(filename2,  "%s/new_dens_%s_D2.raw", host.path, host.dat);
+	sprintf(filename5,  "%s/new_dens_%s_D5.raw", host.path, host.dat);
+	sprintf(filename7,  "%s/new_dens_%s_D7.raw", host.path, host.dat);
+	sprintf(filename9,  "%s/new_dens_%s_D9.raw", host.path, host.dat);
+	sprintf(filename12, "%s/new_dens_%s_D12.raw", host.path, host.dat);
+	sprintf(filename14, "%s/new_dens_%s_D14.raw", host.path, host.dat);
 	
     FILE *fzer = fopen(filename0 ,"rb");
     FILE *ftwo = fopen(filename2 ,"rb");

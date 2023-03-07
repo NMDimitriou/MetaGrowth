@@ -28,6 +28,7 @@ using namespace std;
 #define EXP             1
 #define LIN             2
 #define ID              3
+#define NA				4
 
 //structure to hold size of simulation and arrays on the host
 typedef struct DataArray

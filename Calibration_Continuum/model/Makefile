@@ -21,13 +21,13 @@ NVCC=nvcc
 RM=rm -rf
 
 # model: FK/KSC/KSMD/KSCMD/TEST, 
-# IC: EXP/LIN/ID, 
+# IC: EXP/LIN/ID/NA, 
 # study: CALIBRATION/SA/NONE
 # for NRMSE calculation please choose CALIBRATION flag (loads the experimental data and residual functions)
 SIMU_OPTION += -DSTUDY=CALIBRATION
 SIMU_OPTION += -DMODEL=KSC
-SIMU_OPTION += -DSAVE_DATA     # for speed, comment SAVE_DATA option when calibrating
-SIMU_OPTION += -DNRMSE 			# for speed, comment NRMSE option when calibrating  
+#SIMU_OPTION += -DSAVE_DATA     # for speed, comment SAVE_DATA option when calibrating
+#SIMU_OPTION += -DNRMSE 			# for speed, comment NRMSE option when calibrating  
 SIMU_OPTION += -DIC=EXP
 
 CFLAGS1=-I$(IDIR1) -O3

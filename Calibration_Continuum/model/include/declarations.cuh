@@ -28,8 +28,9 @@ using namespace std;
 #define SA	    	2
 
 #define EXP		1
-#define LIN 		2
+#define LIN 	2
 #define ID		3
+#define NA		4
 
 
 //structure to hold size of simulation and arrays on the host
@@ -42,20 +43,21 @@ typedef struct DataArray
 #if (MODEL == FK || MODEL == KSC || MODEL == KSMD || MODEL == KSCMD || MODEL == TEST)	
 	double* a; //cell density
 	double* a_intm; //intermediate values of a
+	double* a_first; //initial density of a (for Alee effect)
 	//Parameters for tridiagonal solver
-        double* a_rows;
-        double* a_cols;
+	double* a_rows;
+    double* a_cols;
 	double* a_ax;
-        double* a_ay;
-        double* a_az;
-        double* a_bx;
-        double* a_by;
-        double* a_bz;
-        double* a_cx;
-        double* a_cy;
-        double* a_cz;
+	double* a_ay;
+	double* a_az;
+	double* a_bx;
+	double* a_by;
+	double* a_bz;
+	double* a_cx;
+	double* a_cy;
+	double* a_cz;
 	//Save slices - not need for tmcmc
-        //double* a_slice;
+    //double* a_slice;
 #endif
 #if (MODEL == KSC || MODEL == KSCMD || MODEL == TEST)
 	double* b; //signal density
@@ -181,7 +183,7 @@ void hostCloseExp(ExpData& expdat);
 
 //functions in device_functions.cu
 void gpuClose(DataArray& device1, DataArray& device2);
-void gpuStep_explicit(DataArray& device1, DataArray& device2, InitialData& id, double chi_dx, double chi_ecm_dx, int iter);
+void gpuStep_explicit(DataArray& device1, DataArray& device2, InitialData& id, double chi_dx, double chi_ecm_dx, int iter, int time_iter);
 void gpuStep_implicit(DataArray& device1, DataArray& device2, double cfl_a, double cfl_b, double cfl_c);
 void gpuInitialize(InitialData& id, DataArray& host, DataArray& device1, DataArray& device2);
 void ExportDT( DataArray& host, DataArray& device1 );

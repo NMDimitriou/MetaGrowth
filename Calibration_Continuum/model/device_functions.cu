@@ -12,15 +12,6 @@ dim3 threads_laplace;
 dim3 blocks_adv;
 dim3 threads_adv;
 
-dim3 blocks_adv_x;
-dim3 threads_adv_x;
-
-dim3 blocks_adv_y;
-dim3 threads_adv_y;
-
-dim3 blocks_adv_z;
-dim3 threads_adv_z;
-
 dim3 blocksDG_x;
 dim3 threadsDG_x;
 dim3 blocksDG_y;
@@ -54,7 +45,7 @@ void gpuInitialize(InitialData& id, DataArray& host, DataArray& device1, DataArr
 	{
 		char buf[1024];
 		sprintf(buf, "All dimensions must be multiple of %d", BLOCKSIZE);
-		Error(buf);
+		//Error(buf);
 	}
 
 	//Calculate kernel configurations
@@ -71,20 +62,20 @@ void gpuInitialize(InitialData& id, DataArray& host, DataArray& device1, DataArr
     threads_adv.x = BDIMX;
     threads_adv.y = BDIMY;
 
-	blocks_adv_x.x  = 4*host.ymax/BLOCKSIZE;
-	blocks_adv_x.y  = host.zmax;
-	threads_adv_x.x = host.xmax;
-    threads_adv_x.y = BLOCKSIZE/4;
+//	blocks_adv_x.x  = 4*host.ymax/BLOCKSIZE;
+//	blocks_adv_x.y  = host.zmax;
+//	threads_adv_x.x = host.xmax;
+//  threads_adv_x.y = BLOCKSIZE/4;
 
-	blocks_adv_y.x  = 4*host.xmax/BLOCKSIZE; 
-    blocks_adv_y.y  = host.zmax;
-    threads_adv_y.x = BLOCKSIZE/4;
-    threads_adv_y.y = host.ymax;
+//	blocks_adv_y.x  = 4*host.xmax/BLOCKSIZE; 
+//    blocks_adv_y.y  = host.zmax;
+//    threads_adv_y.x = BLOCKSIZE/4;
+//    threads_adv_y.y = host.ymax;
 
-	blocks_adv_z.x  = (int)ceil((float)host.zmax/(BDIMZ));
-    blocks_adv_z.y  = (int)ceil((float)host.xmax/(BDIMX));
-    threads_adv_z.x = BDIMZ;
-    threads_adv_z.y = BDIMX;
+//	blocks_adv_z.x  = (int)ceil((float)host.zmax/(BDIMZ));
+//    blocks_adv_z.y  = (int)ceil((float)host.xmax/(BDIMX));
+//    threads_adv_z.x = BDIMZ;
+//    threads_adv_z.y = BDIMX;
 
 	//Kernel configuration for diffusion term
 	blocksDG_x.x=host.ymax;
@@ -150,6 +141,7 @@ void gpuInitialize(InitialData& id, DataArray& host, DataArray& device1, DataArr
 	#if ( MODEL == FK || MODEL == KSC || MODEL == KSMD || MODEL == KSCMD || MODEL == TEST)	
 	cudaMalloc((void**)&device1.a		, size);
 	cudaMalloc((void**)&device2.a		, size);
+	cudaMalloc((void**)&device1.a_first , size);
 	cudaMalloc((void**)&device1.a_rows      , size);
     cudaMalloc((void**)&device1.a_cols      , size);
 	cudaMalloc((void**)&device1.a_ax        , size);
@@ -164,6 +156,7 @@ void gpuInitialize(InitialData& id, DataArray& host, DataArray& device1, DataArr
 	// Copy host to device
 	cudaMemcpy(device1.a            , host.a                , size              , cudaMemcpyHostToDevice);
     cudaMemcpy(device2.a            , host.a                , size              , cudaMemcpyHostToDevice);
+	cudaMemcpy(device1.a_first      , host.a_first          , size              , cudaMemcpyHostToDevice);
 	cudaMemcpy(device1.a_rows       , host.a_rows           , size              , cudaMemcpyHostToDevice);
     cudaMemcpy(device1.a_cols       , host.a_cols           , size              , cudaMemcpyHostToDevice);
 	#endif
@@ -250,34 +243,38 @@ void gpuInitialize(InitialData& id, DataArray& host, DataArray& device1, DataArr
 }
 
 //compute time step for explicit method
-void gpuStep_explicit(DataArray& device1, DataArray& device2, InitialData& id, double chi_dx, double chi_ecm_dx, int iter)
+void gpuStep_explicit(DataArray& device1, DataArray& device2, InitialData& id, double chi_dx, double chi_ecm_dx, int iter, int time_iter)
 {
 	//Advection - explicit Lax-Wendroff with MUSCL Flux Limiter
 	#if ( MODEL == KSC || MODEL == TEST)
 	kernelAdv<<<blocks_adv, threads_adv>>>(device2.a, device1.a, device1.b  , device1.del_b  , device1.dt, id.chi, chi_dx);
 	kernelGrowA<<<blocks_adv, threads_adv>>>(device1.a, device2.a, device1.dt, id.s);
-	kernelGrowB<<<blocks_adv, threads_adv>>>(device2.b, device1.b, device1.a , device1.dt, id.r);
+	//kernelAleeA<<<blocks_adv, threads_adv>>>(device1.a, device2.a, device1.a_first, device1.dt, id.s, time_iter);
+	//kernelGrowB<<<blocks_adv, threads_adv>>>(device2.b, device1.b, device1.a , device1.dt, id.r);
 	//swap
-	double *tempb=device2.b  ; device2.b=device1.b    ; device1.b=tempb;
+	//double *tempb=device2.b  ; device2.b=device1.b    ; device1.b=tempb;
 	#endif
 
 	#if ( MODEL == KSMD )
 	kernelAdv<<<blocks_adv, threads_adv>>>(device2.a, device1.a, device1.ecm, device1.del_ecm, device1.dt, id.chi_ecm, chi_ecm_dx);
 	kernelGrowA<<<blocks_adv, threads_adv>>>(device1.a, device2.a, device1.dt, id.s);
+	//kernelAleeA<<<blocks_adv, threads_adv>>>(device1.a, device2.a, device1.a_first, device1.dt, id.s, time_iter);
 	#endif
 
 	#if ( MODEL == KSCMD )
 	kernelAdv<<<blocks_adv, threads_adv>>>(device2.a, device1.a, device1.b  , device1.del_b  , device1.dt, id.chi, chi_dx);
 	kernelAdv<<<blocks_adv, threads_adv>>>(device1.a, device2.a, device1.ecm, device1.del_ecm, device1.dt, id.chi_ecm, chi_ecm_dx);
     kernelGrowA<<<blocks_adv, threads_adv>>>(device2.a, device1.a, device1.dt, id.s);
-    kernelGrowB<<<blocks_adv, threads_adv>>>(device2.b, device1.b, device1.a , device1.dt, id.r);
+	//kernelAleeA<<<blocks_adv, threads_adv>>>(device2.a, device1.a, device1.a_first, device1.dt, id.s, time_iter);
+    //kernelGrowB<<<blocks_adv, threads_adv>>>(device2.b, device1.b, device1.a , device1.dt, id.r);
 	//swap
     double *tempa=device2.a  ; device2.a=device1.a    ; device1.a=tempa;
-    double *tempb=device2.b  ; device2.b=device1.b    ; device1.b=tempb;
+    //double *tempb=device2.b  ; device2.b=device1.b    ; device1.b=tempb;
 	#endif
 
 	#if ( MODEL == FK )
 	kernelGrowA<<<blocks_adv, threads_adv>>>(device2.a, device1.a, device1.dt, id.s);
+	//kernelAleeA<<<blocks_adv, threads_adv>>>(device2.a, device1.a, device1.a_first, device1.dt, id.s, time_iter);
 	//swap
 	double *tempa=device2.a  ; device2.a=device1.a    ; device1.a=tempa;
 	#endif
@@ -305,11 +302,11 @@ void gpuStep_explicit(DataArray& device1, DataArray& device2, InitialData& id, d
 	kernelStability<<<dimGrid, dimBlock>>>(device1.del_b, device1.del_ecm, device1.d_max_block);
 	final_kernelStability<<<1, dimBlock>>>(device1.d_max_block, device1.dt, device2.dt,256, iter);//, id.da, id.db, id.dc);
 	#elif ( MODEL == KSMD )
-    double *p;
+    double *p; 
     kernelStability<<<dimGrid, dimBlock>>>(p            , device1.del_ecm, device1.d_max_block);
 	final_kernelStability<<<1, dimBlock>>>(device1.d_max_block, device1.dt, device2.dt,256, iter);//, id.da, 0, id.dc);
 	#elif ( MODEL == KSC || MODEL == TEST )
-	double *p;
+	double *p; 
 	kernelStability<<<dimGrid, dimBlock>>>(device1.del_b, p              , device1.d_max_block);
 	final_kernelStability<<<1, dimBlock>>>(device1.d_max_block, device1.dt, device2.dt,256, iter);//, id.da, id.db, 0);
 	#endif
@@ -515,6 +512,13 @@ void ExportCheckpoint(const char* name_a, const char* name_b, const char* name_c
 	fclose(fc);
 */
 	#endif
+
+	double suma=0.;
+	for(int i=0;i<total;i++){
+		suma += host.a_intm[i];
+	}
+	printf("summed density = %lf",suma);
+
 #endif
 
 /*

@@ -10,6 +10,7 @@ void hostInitialize(DataArray& host)
 	int size      = total * sizeof(double);
 	double dt_min = 1e-08;
 
+
 	#if ( MODEL == FK || MODEL == KSC || MODEL == KSMD || MODEL == KSCMD || MODEL == TEST)
 	host.a_intm      = (double*) malloc(size);
 	#endif
@@ -75,7 +76,8 @@ void hostInitialize(DataArray& host)
 	int id_d_max_block = ff[numpar-1];
 
 	#if ( MODEL == FK || MODEL == KSC || MODEL == KSMD || MODEL == KSCMD || MODEL == TEST)
-	host.a 		 = (double *)shmat(id_a,NULL,0);
+	host.a 		 	 = (double *)shmat(id_a,NULL,0);
+	host.a_first     = (double *)shmat(id_a,NULL,0);
 	host.a_rows      = (double *)shmat(id_a_rows,NULL,0);
 	host.a_cols      = (double *)shmat(id_a_cols,NULL,0);
 	if (host.a_intm      == NULL) Error("Host.a_intm memory allocation failed\n");
@@ -192,8 +194,8 @@ void hostClose(DataArray& host)
 	free(host.del_b);
 	free(host.d_max_block);
 */
-	cudaFreeHost(host.dt);
-    cudaFreeHost(host.new_dt);
+//	cudaFreeHost(host.dt);
+//    cudaFreeHost(host.new_dt);
 
 //	free(host.a_slice);
 //	free(host.b_slice);

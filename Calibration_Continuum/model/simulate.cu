@@ -18,12 +18,12 @@ double simulate(DataArray& host, DataArray& device1, DataArray& device2, ExpData
 	// Implicit time step based Da, Db
 	id.cfl       = 1.0;
 	#if ( MODEL == FK || MODEL == KSC || MODEL == KSMD || MODEL == KSCMD || MODEL == TEST)
-        double dt_a  = id.cfl*id.dx*id.dx/id.da;
+	double dt_a  = id.cfl*id.dx*id.dx/id.da;
 	id.dt_imp    = dt_a;
 	#endif
 	#if ( MODEL == KSC || MODEL == KSCMD || MODEL == TEST)
-        double dt_b  = id.cfl*id.dx*id.dx/id.db;
-        id.dt_imp    = min(dt_a,dt_b);
+	double dt_b  = id.cfl*id.dx*id.dx/id.db;
+	id.dt_imp    = min(dt_a,dt_b);
 	#endif
 	#if ( MODEL == KSMD || MODEL == KSCMD )
 	double dt_c  = id.cfl*id.dx*id.dx/id.dc;
@@ -54,11 +54,17 @@ double simulate(DataArray& host, DataArray& device1, DataArray& device2, ExpData
 	fnrmse = save_nrmse(host);
 	#endif
 
-	//INITIALIZE
-	hostInitialize(host);	
-	gpuInitialize(id, host, device1, device2);
 
-    int exportInterval[6] = {int(2.0f/id.dt_imp),int(5.0f/id.dt_imp),int(7.0f/id.dt_imp),
+	//INITIALIZE
+    hostInitialize(host);
+    #if ( MODEL == FK )
+    *host.dt     = 0.25*id.dt_imp;
+    *host.new_dt = 0.25*id.dt_imp;
+    #endif
+    gpuInitialize(id, host, device1, device2);
+
+
+	int exportInterval[6] = {int(2.0f/id.dt_imp),int(5.0f/id.dt_imp),int(7.0f/id.dt_imp),
 	            			 int(9.0f/id.dt_imp),int(12.0f/id.dt_imp),int(14.0f/id.dt_imp)} ;
     int c                 = 0    ;
 	double step_dt        = 0.   ; //explicit time-step
@@ -84,13 +90,13 @@ double simulate(DataArray& host, DataArray& device1, DataArray& device2, ExpData
         {
 			ct ++;
 			#if   ( MODEL == KSCMD )
-            gpuStep_explicit(device1, device2, id, chi_b_dx, chi_ecm_dx, ct);
+            gpuStep_explicit(device1, device2, id, chi_b_dx, chi_ecm_dx, ct, i);
 			#elif ( MODEL == KSMD  )
-			gpuStep_explicit(device1, device2, id, 0.0     , chi_ecm_dx, ct);
+			gpuStep_explicit(device1, device2, id, 0.0     , chi_ecm_dx, ct, i);
 			#elif ( MODEL == KSC   || MODEL == TEST)
-			gpuStep_explicit(device1, device2, id, chi_b_dx, 0.0       , ct);
+			gpuStep_explicit(device1, device2, id, chi_b_dx, 0.0       , ct, i);
 			#elif ( MODEL == FK    )
-			gpuStep_explicit(device1, device2, id, 0.0     , 0.0       , ct);
+			gpuStep_explicit(device1, device2, id, 0.0     , 0.0       , ct, i);
 			#endif
             ExportDT(host,device1);
             step_dt += *host.new_dt;
@@ -140,13 +146,13 @@ double simulate(DataArray& host, DataArray& device1, DataArray& device2, ExpData
         {
 			ct ++;
 			#if   ( MODEL == KSCMD )
-            gpuStep_explicit(device1, device2, id, chi_b_dx, chi_ecm_dx, ct);
+            gpuStep_explicit(device1, device2, id, chi_b_dx, chi_ecm_dx, ct, i);
             #elif ( MODEL == KSMD  )
-            gpuStep_explicit(device1, device2, id, 0.0     , chi_ecm_dx, ct);
+            gpuStep_explicit(device1, device2, id, 0.0     , chi_ecm_dx, ct, i);
             #elif ( MODEL == KSC   || MODEL == TEST)
-            gpuStep_explicit(device1, device2, id, chi_b_dx, 0.0       , ct);
+            gpuStep_explicit(device1, device2, id, chi_b_dx, 0.0       , ct, i);
             #elif ( MODEL == FK    )
-            gpuStep_explicit(device1, device2, id, 0.0     , 0.0       , ct);
+            gpuStep_explicit(device1, device2, id, 0.0     , 0.0       , ct, i);
             #endif
             ExportDT(host,device1);
             step_dt += *host.new_dt;
@@ -237,12 +243,13 @@ STOP1:
     cudaEventDestroy(stop);
 
 	#if (STUDY == CALIBRATION)
-	if(id.SSE==id.SSE) { status(1); }else{ id.SSE=1e2; }
+	if(id.SSE==id.SSE) { status(1); }else{ id.SSE=1e7;/*negative if used instead of loglike*/ }
 	printf("Total SSE = %.15f\n", id.SSE);
 	double loglike = -0.5*total*log(2*M_PI) - 0.5*total*log(sigma_data2) - 0.5*id.SSE/sigma_data2; //
+	//double loglike = -id.SSE;
 	printf("Log-Likelighood = %.15f\n", loglike);
 	printf(" \n");
-        return loglike;	
+    return loglike;	
 	#else
 	return 0;
 	#endif

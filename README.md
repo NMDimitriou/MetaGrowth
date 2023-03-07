@@ -87,7 +87,7 @@ to a 480x480x176 grid size that will be introduced to the simulator.
 The default directory and files can be found in the `res_coord_scaled` directory.
 You can run the script with the default arguments and it will produce the density
 profiles of the corresponding coordinates. The output can be found in the
-`Corrected_Density_double_precision`.
+`New_Density_double_precision`.
 
 3. Copy the output files into the `Calibration_Continuum/IC` to proceed
 with the next step.
@@ -123,7 +123,7 @@ the shared memory, and the `main` that executes the simulation. The `main_parent
 
   `./main_parent <start or stop> <directory of the ICs and experimental data>  <common prefix of the ICs/data files>`
 
-  The accepted filename format for the ICs and experimental data files is < common prefix >_D#.bin (for example AN_D0.bin for data at day 0, AN_D2.bin for data at day 2 etc).
+  The accepted filename format for the ICs and experimental data files is < common prefix >_D#.raw (for example AN_D0.raw for data at day 0, AN_D2.raw for data at day 2 etc).
 
   Once the ICs and experimental data are loaded to the shared memory, the `./main` file runs the simulation. The input arguments for the `./main` file are the following
 
